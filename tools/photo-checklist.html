@@ -1,0 +1,433 @@
+<title>Scale Photo Checklist</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600&family=IBM+Plex+Mono:wght@500&display=swap">
+<style>
+/* Layout: sticky progress header, sections of square tiles, bottom action bar, bottom-sheet per photo */
+:root{
+  --bg:#ECEFF1; --surface:#FFFFFF; --ink:#13222B; --muted:#586972; --line:#D2DADE;
+  --accent:#0E5A78; --on-accent:#FFFFFF; --done:#1E7A4B; --prio:#E3A008; --tile:#DDE4E8; --scrim:rgba(10,20,26,.55); --danger:#B3361F;
+  --f-display:'Barlow Semi Condensed','Arial Narrow',system-ui,sans-serif;
+  --f-body:'Barlow',system-ui,-apple-system,'Segoe UI',sans-serif;
+  --f-mono:'IBM Plex Mono',ui-monospace,Menlo,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0F1A20; --surface:#17262E; --ink:#E7EEF1; --muted:#97A9B2; --line:#2A3C46;
+  --accent:#5BB8DA; --on-accent:#08202B; --done:#4CC384; --prio:#F2B93B; --tile:#203440; --scrim:rgba(0,0,0,.65); --danger:#FF8F78; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0F1A20; --surface:#17262E; --ink:#E7EEF1; --muted:#97A9B2; --line:#2A3C46;
+  --accent:#5BB8DA; --on-accent:#08202B; --done:#4CC384; --prio:#F2B93B; --tile:#203440; --scrim:rgba(0,0,0,.65); --danger:#FF8F78; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.4;
+  padding-block:0 96px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+button{font:inherit;color:inherit}
+.wrap{max-width:720px;margin:0 auto}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:30;background:var(--bg)}
+header{position:sticky;top:env(safe-area-inset-top,0px);z-index:20;background:var(--bg);padding:14px 0 10px;border-bottom:1px solid var(--line)}
+h1{font:700 26px/1.1 var(--f-display);letter-spacing:.01em;margin:0;text-wrap:balance}
+.sub{color:var(--muted);font-size:13px;margin:2px 0 10px}
+.prog{display:flex;align-items:center;gap:10px}
+.bar{flex:1;height:8px;border-radius:4px;background:var(--tile);overflow:hidden}
+.bar i{display:block;height:100%;background:var(--done);width:0;transition:width .3s}
+.count{font:500 14px var(--f-mono);font-variant-numeric:tabular-nums;white-space:nowrap}
+.chips{display:flex;gap:6px;margin-top:10px}
+.chip{border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:6px 14px;font:600 13px var(--f-display);letter-spacing:.04em;text-transform:uppercase;cursor:pointer;min-height:36px}
+.chip[aria-pressed="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.notice{margin:14px 0 0;padding:10px 12px;border:1px solid var(--line);background:var(--surface);border-radius:8px;font-size:13px;color:var(--muted)}
+.notice b{color:var(--ink)}
+.legend{display:flex;align-items:center;gap:6px;margin:10px 0 0;font-size:12px;color:var(--muted)}
+.dot{width:10px;height:10px;border-radius:50%;background:var(--prio);display:inline-block}
+section{margin-top:22px}
+.sh{display:flex;align-items:baseline;justify-content:space-between;gap:10px;margin-bottom:4px}
+h2{font:700 19px/1.2 var(--f-display);letter-spacing:.02em;text-transform:uppercase;margin:0}
+.sc{font:500 13px var(--f-mono);color:var(--muted);font-variant-numeric:tabular-nums}
+.sn{margin:0 0 10px;color:var(--muted);font-size:13px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(104px,1fr));gap:8px}
+.tile{position:relative;aspect-ratio:1;max-width:100%;border:1.5px dashed var(--line);border-radius:10px;background:var(--tile);overflow:hidden;padding:0;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;text-align:center}
+.tile:focus-visible,.btn:focus-visible,.chip:focus-visible,.x:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.tile svg{width:26px;height:26px;color:var(--muted)}
+.tile .lb{font:600 13px/1.15 var(--f-display);padding:0 8px;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;letter-spacing:.01em}
+.tile .no{position:absolute;top:6px;left:7px;font:500 11px var(--f-mono);color:var(--muted)}
+.tile.must::after{content:"";position:absolute;top:7px;right:7px;width:10px;height:10px;border-radius:50%;background:var(--prio)}
+.tile.done{border-style:solid;border-color:var(--done)}
+.tile.done img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.tile.done .cap{position:absolute;left:0;right:0;bottom:0;padding:16px 6px 5px;background:linear-gradient(transparent,rgba(0,0,0,.78));color:#fff;font:600 12px/1.15 var(--f-display);text-align:left;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.tile.done .no{color:#fff;background:rgba(0,0,0,.55);padding:1px 5px;border-radius:4px;top:5px;left:5px}
+.tile .ok{position:absolute;top:5px;right:5px;width:22px;height:22px;border-radius:50%;background:var(--done);color:#fff;display:flex;align-items:center;justify-content:center}
+.tile .ok svg{width:14px;height:14px;color:#fff}
+.tile.add{border-color:var(--accent);color:var(--accent)}
+.tile.add svg{color:var(--accent)}
+.tile[hidden]{display:none!important}
+.empty{color:var(--muted);font-size:14px;padding:30px 0;text-align:center}
+.foot{position:fixed;left:0;right:0;bottom:0;z-index:20;background:var(--surface);border-top:1px solid var(--line);
+  padding:10px max(16px,env(safe-area-inset-right,0px)) calc(10px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px))}
+.foot .in{max-width:720px;margin:0 auto;display:flex;gap:8px}
+.btn{border:1.5px solid var(--line);background:var(--surface);border-radius:10px;min-height:48px;padding:0 16px;font:600 16px var(--f-display);letter-spacing:.03em;text-transform:uppercase;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:8px;flex:1}
+.btn svg{width:20px;height:20px}
+.btn.pri{background:var(--accent);border-color:var(--accent);color:var(--on-accent)}
+.btn.sec{border-color:var(--ink)}
+.btn.dng{color:var(--danger);border-color:var(--danger)}
+.btn[disabled]{opacity:.5;cursor:default}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(86px + env(safe-area-inset-bottom,0px));background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:8px;font-size:14px;z-index:60;max-width:calc(100% - 32px);text-align:center}
+.reset{margin-top:28px;text-align:center}
+.reset button{background:none;border:0;color:var(--muted);text-decoration:underline;font-size:13px;padding:10px;cursor:pointer}
+/* sheet */
+.scrim{position:fixed;inset:0;background:var(--scrim);z-index:40}
+.sheet{position:fixed;left:0;right:0;bottom:0;z-index:50;background:var(--surface);border-radius:16px 16px 0 0;max-height:94dvh;overflow:auto;
+  padding:16px max(16px,env(safe-area-inset-right,0px)) calc(16px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px))}
+.sheet .in{max-width:560px;margin:0 auto;display:flex;flex-direction:column;gap:12px}
+.top{display:flex;justify-content:space-between;align-items:flex-start;gap:10px}
+.top h3{font:700 22px/1.15 var(--f-display);margin:0;text-wrap:balance}
+.meta{font:500 12px var(--f-mono);color:var(--muted);margin-bottom:4px}
+.x{border:1px solid var(--line);background:var(--surface);border-radius:50%;width:40px;height:40px;flex:none;cursor:pointer;font-size:20px;line-height:1}
+.hint{margin:0;color:var(--ink)}
+.badge{display:inline-flex;align-items:center;gap:6px;font:600 12px var(--f-display);letter-spacing:.05em;text-transform:uppercase;color:var(--muted)}
+.prev{aspect-ratio:4/3;max-width:100%;width:100%;border-radius:10px;background:var(--tile);border:1.5px dashed var(--line);display:flex;align-items:center;justify-content:center;overflow:hidden}
+.prev img{width:100%;height:100%;object-fit:contain;background:#000}
+.prev svg{width:44px;height:44px;color:var(--muted)}
+.row{display:flex;gap:8px;flex-wrap:wrap}
+label.f{font:600 13px var(--f-display);letter-spacing:.05em;text-transform:uppercase;color:var(--muted)}
+textarea,input[type=text]{width:100%;font:inherit;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:10px;margin-top:4px}
+textarea{min-height:64px;resize:vertical}
+@media (prefers-reduced-motion:reduce){.bar i{transition:none}}
+</style>
+
+<div class="wrap">
+  <header>
+    <h1>Scale Photo Checklist</h1>
+    <p class="sub">Photos needed to build the Hellenic trainer. Saved on this phone until you clear them.</p>
+    <div class="prog"><div class="bar" aria-hidden="true"><i id="barfill"></i></div><div class="count" id="count">0 / 0</div></div>
+    <div class="chips" role="group" aria-label="Filter">
+      <button class="chip" id="f-all" aria-pressed="true">All</button>
+      <button class="chip" id="f-todo" aria-pressed="false">To do</button>
+      <button class="chip" id="f-done" aria-pressed="false">Done</button>
+    </div>
+  </header>
+  <p class="notice"><b>Keep it clean.</b> Do not photograph a typed password, or staff names and ID numbers. Photograph the empty field or the layout only.</p>
+  <p class="legend"><span class="dot"></span> First priority. Start with these, scale menu first.</p>
+  <main id="main"></main>
+  <div class="reset"><button id="clearall">Clear all photos from this phone</button></div>
+</div>
+
+<div class="foot"><div class="in">
+  <button class="btn pri" id="next"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg><span id="nexttxt">Next photo</span></button>
+  <button class="btn sec" id="export"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M7 10l5 5 5-5M5 20h14"/></svg><span>Export PDF</span></button>
+</div></div>
+
+<input type="file" id="cam" accept="image/*" capture="environment" hidden>
+<input type="file" id="gal" accept="image/*" hidden>
+<div id="layer"></div>
+<div id="toast" class="toast" hidden></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script>
+(function(){
+var SECTIONS=[
+ {name:"Start and access",note:"The screens you pass through to reach the settings.",shots:[
+  ["Scale menu (after pressing MENU)","Press MENU on the right side of the screen and photograph the whole screen, all buttons visible.",1],
+  ["Default screen","The screen the terminal shows after power-up and after RETURN. Whole screen, straight on.",1],
+  ["CMD1 password prompt","Press CMD1. Photograph the prompt with the field empty. Do not type the password first.",1],
+  ["Wrong password message","Only if safe: enter a wrong password once and photograph the message.",0],
+  ["COMMAND Menu 1, page 1","After you are in. Whole screen.",1],
+  ["COMMAND Menu 1, page 2","Press >> and photograph the next page.",1],
+  ["COMMAND Menu 1, further pages","If there is a page 3 or more, photograph them here.",0],
+  ["CMD0 screen","Whatever CMD0 opens.",1]]},
+ {name:"Edit screens",note:"Photograph each page of every record with the << >> buttons.",shots:[
+  ["Edit Products: PLU entry","The screen asking for the PLU number.",1],
+  ["Edit Products: record page 1","The first page of the record for one PLU.",1],
+  ["Edit Products: record page 2","Press >>.",1],
+  ["Edit Products: record page 3","Press >> again. If none, skip.",0],
+  ["Edit Products: record page 4","If there is one.",0],
+  ["Edit Texts","The list or entry screen.",0],
+  ["Edit Menus","The list or entry screen.",0],
+  ["Edit Codes","The list or entry screen.",0],
+  ["Edit Hotshots","The hot key (A to G) set-up screen.",0],
+  ["Edit User ID, layout only","Take it so no names or ID numbers can be read.",0]]},
+ {name:"Set-up and Utility menus",note:"Every page of each menu.",shots:[
+  ["Set-up Menu, page 1","Whole screen.",1],
+  ["Set-up Menu, page 2","Press >>.",0],
+  ["Utility Menu, page 1","Whole screen.",1],
+  ["Utility Menu, page 2","Press >>.",0],
+  ["Respec Error Margin","The settings screen.",0],
+  ["Date Adjust Limit","The settings screen.",0],
+  ["PLU lock and default PLU","The settings screen.",0],
+  ["Backup Management","The screen and its options.",0],
+  ["Edit Machine ID and serial number","Check that the serial number is readable.",0]]},
+ {name:"Other settings",note:"Skip any you cannot open safely. Do not change anything.",shots:[
+  ["Edit Key Sequence","The screen.",0],
+  ["Key Sequence Presets","The screen.",0],
+  ["Configure Barcode Verifier","The screen.",0],
+  ["Clone Terminal","The screen only. Do not run it.",0],
+  ["Command Line","The screen only.",0],
+  ["Test I/O Boards","The screen.",0],
+  ["Edit config.ini","The screen.",0],
+  ["View Log File","A page of the log. Check for names first.",0],
+  ["Unlock Scale","The screen.",0],
+  ["Change Master Password, empty","Open it and photograph the empty fields. Do not change anything.",0]]},
+ {name:"Weighing in use",note:"With a real crate or test item on the scale where you can.",shots:[
+  ["Weighing, under weight","The screen showing an UNDER message.",1],
+  ["Weighing, over weight","The screen showing an OVER message.",1],
+  ["Weighing, in range","The screen with an in-range weight, before printing.",1],
+  ["Moment of printing","The screen right after the label prints.",0],
+  ["Function keys, all pages","Use << >> and photograph each page of the function keys here.",1],
+  ["PLU Totals","The screen.",0],
+  ["Delete Trans","The screen.",0],
+  ["Order Enquiry","The screen.",0],
+  ["Date Adjust and Tare Adjust","The screens.",0],
+  ["Force Qty and Fixed Weight","The screens.",0],
+  ["Down Time","The screen and its reason list.",0],
+  ["Pallet Change and Pallet Label","The screens.",0],
+  ["Any error or warning","Printer out of labels, network lost, overload. Take whatever you see.",0]]},
+ {name:"Labels and hardware",note:"Take the label next to the screen showing the same PLU.",shots:[
+  ["Printed case label","Hold the label next to the screen showing the same PLU. Barcode and text sharp.",1],
+  ["Printed pallet label","If your line prints one.",0],
+  ["Label close-up","Close-up so the small print and barcode can be read.",0],
+  ["Printer nameplate","The plate on the printer.",0],
+  ["Scale platform plate","The plate on the scale.",0],
+  ["Terminal rear plate","Back or side of the terminal.",0],
+  ["Calibration sticker","Direct Scales sticker, date readable.",0]]},
+ {name:"Software on the PC",note:"Optional. Only if you get a chance. Hide names and passwords.",shots:[
+  ["FOPS 8 main menu","The first screen after sign-in, no personal details.",0],
+  ["FOPS 8 planning or order screen","Any screen the planning team uses.",0],
+  ["FOPS 8 production screen","Any screen the production team uses.",0],
+  ["FOPSxEditor label editor","The label editor with a label open.",0],
+  ["FOPSx label formats list","The list of label formats.",0],
+  ["FOPSx web page","The first page in the browser. Hide the address and login.",0],
+  ["VNC folder","The folder contents on the server.",0]]}
+];
+var SHOTS=[],n=0;
+SECTIONS.forEach(function(s,si){s.shots=s.shots.map(function(a){n++;var o={id:"s"+(n<10?"0":"")+n,no:n,title:a[0],hint:a[1],must:!!a[2],sec:si};SHOTS.push(o);return o;});});
+
+var rec={},urls={},filter="all",openId=null,dbh=null,memOnly=false;
+var $=function(i){return document.getElementById(i)};
+function esc(s){return String(s==null?"":s).replace(/[&<>"]/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]})}
+var ICON_CAM='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg>';
+var ICON_OK='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5 9-10"/></svg>';
+var ICON_PLUS='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>';
+
+/* storage: IndexedDB, falls back to memory */
+function openDB(){return new Promise(function(res){
+  try{var r=indexedDB.open("scale-photo-checklist",1);
+    r.onupgradeneeded=function(){r.result.createObjectStore("shots",{keyPath:"id"})};
+    r.onsuccess=function(){res(r.result)};r.onerror=function(){res(null)};
+  }catch(e){res(null)}})}
+function dbAll(){return new Promise(function(res){
+  if(!dbh)return res([]);
+  try{var q=dbh.transaction("shots").objectStore("shots").getAll();q.onsuccess=function(){res(q.result||[])};q.onerror=function(){res([])};}catch(e){res([])}})}
+function dbPut(o){return new Promise(function(res){
+  if(!dbh)return res(false);
+  try{var t=dbh.transaction("shots","readwrite");t.objectStore("shots").put(o);t.oncomplete=function(){res(true)};t.onerror=function(){res(false)};}catch(e){res(false)}})}
+function dbDel(id){return new Promise(function(res){
+  if(!dbh)return res();
+  try{var t=dbh.transaction("shots","readwrite");t.objectStore("shots").delete(id);t.oncomplete=res;t.onerror=res;}catch(e){res()}})}
+function dbClear(){return new Promise(function(res){
+  if(!dbh)return res();
+  try{var t=dbh.transaction("shots","readwrite");t.objectStore("shots").clear();t.oncomplete=res;t.onerror=res;}catch(e){res()}})}
+
+function extras(){return Object.keys(rec).filter(function(k){return rec[k].extra}).sort().map(function(k){return rec[k]})}
+function has(id){return !!(rec[id]&&rec[id].blob)}
+function urlFor(id){if(!urls[id]&&has(id))urls[id]=URL.createObjectURL(rec[id].blob);return urls[id]}
+function allShots(){return SHOTS}
+function doneCount(){return SHOTS.filter(function(s){return has(s.id)}).length}
+function nextMissing(from){
+  var i0=0;if(from){for(var i=0;i<SHOTS.length;i++)if(SHOTS[i].id===from){i0=i+1;break}}
+  for(var k=0;k<SHOTS.length;k++){var s=SHOTS[(i0+k)%SHOTS.length];if(!has(s.id)&&s.id!==from)return s}
+  return null}
+function nextPriority(){
+  for(var i=0;i<SHOTS.length;i++)if(SHOTS[i].must&&!has(SHOTS[i].id))return SHOTS[i];
+  return nextMissing(null)}
+
+function tileHTML(s){
+  var d=has(s.id),vis=filter==="all"||(filter==="todo"&&!d)||(filter==="done"&&d);
+  var cls="tile"+(d?" done":"")+(s.must&&!d?" must":"");
+  var h='<button class="'+cls+'" data-id="'+s.id+'"'+(vis?"":" hidden")+' aria-label="'+esc(s.no+". "+s.title+(d?", photo taken":", no photo yet"))+'">';
+  h+='<span class="no">'+(s.no<10?"0":"")+s.no+'</span>';
+  if(d){h+='<img alt="" src="'+urlFor(s.id)+'"><span class="ok">'+ICON_OK+'</span><span class="cap">'+esc(s.title)+'</span>'}
+  else h+=ICON_CAM+'<span class="lb">'+esc(s.title)+'</span>';
+  return h+'</button>'}
+function extraTile(e,i){
+  var vis=filter==="all"||(filter==="todo"&&!e.blob)||(filter==="done"&&e.blob);
+  var d=!!e.blob;
+  var h='<button class="tile'+(d?" done":"")+'" data-id="'+e.id+'"'+(vis?"":" hidden")+' aria-label="'+esc(e.title||"Extra photo")+'"><span class="no">+'+(i+1)+'</span>';
+  if(d)h+='<img alt="" src="'+urlFor(e.id)+'"><span class="ok">'+ICON_OK+'</span><span class="cap">'+esc(e.title||"Extra photo")+'</span>';
+  else h+=ICON_CAM+'<span class="lb">'+esc(e.title||"Extra photo")+'</span>';
+  return h+'</button>'}
+
+function render(){
+  var h="",sy=window.scrollY;
+  SECTIONS.forEach(function(s,si){
+    var d=s.shots.filter(function(x){return has(x.id)}).length;
+    var any=s.shots.some(function(x){var dd=has(x.id);return filter==="all"||(filter==="todo"&&!dd)||(filter==="done"&&dd)});
+    if(!any)return;
+    h+='<section><div class="sh"><h2>'+esc(s.name)+'</h2><span class="sc">'+d+'/'+s.shots.length+'</span></div><p class="sn">'+esc(s.note)+'</p><div class="grid">'+s.shots.map(tileHTML).join("")+'</div></section>';
+  });
+  var ex=extras();
+  if(filter!=="todo"||ex.some(function(e){return !e.blob})){
+    h+='<section><div class="sh"><h2>Extras</h2><span class="sc">'+ex.filter(function(e){return e.blob}).length+'</span></div><p class="sn">Anything else worth showing, such as a screen not on this list.</p><div class="grid">'+ex.map(extraTile).join("")+
+      '<button class="tile add" data-add="1" aria-label="Add an extra photo">'+ICON_PLUS+'<span class="lb">Add extra photo</span></button></div></section>';
+  }
+  if(!h)h='<p class="empty">Nothing here.</p>';
+  $("main").innerHTML=h;
+  var dc=doneCount();
+  $("count").textContent=dc+" / "+SHOTS.length;
+  $("barfill").style.width=(100*dc/SHOTS.length)+"%";
+  var nx=nextPriority();
+  $("nexttxt").textContent=nx?(nx.must&&!dc?"Start":"Next photo"):"All taken";
+  $("next").disabled=!nx;
+  $("export").querySelector("span").textContent="Export PDF ("+(dc+extras().filter(function(e){return e.blob}).length)+")";
+  window.scrollTo(0,sy);
+}
+
+function toast(t){var e=$("toast");e.textContent=t;e.hidden=false;clearTimeout(toast.t);toast.t=setTimeout(function(){e.hidden=true},3200)}
+
+/* sheet */
+function shotById(id){
+  for(var i=0;i<SHOTS.length;i++)if(SHOTS[i].id===id)return SHOTS[i];
+  return rec[id]&&rec[id].extra?{id:id,extra:true,no:0,title:rec[id].title||"Extra photo",hint:"Label this photo so it is clear what it shows.",sec:-1}:null}
+function openSheet(id){
+  var s=shotById(id);if(!s)return;openId=id;
+  var r=rec[id]||{},d=has(id),ex=!!s.extra;
+  var h='<div class="scrim" id="scrim"></div><div class="sheet" role="dialog" aria-modal="true" aria-label="'+esc(s.title)+'"><div class="in">';
+  h+='<div class="top"><div style="min-width:0"><div class="meta">'+(ex?"EXTRA":"SHOT "+(s.no<10?"0":"")+s.no+" OF "+SHOTS.length+" · "+esc(SECTIONS[s.sec].name.toUpperCase()))+'</div>';
+  if(ex)h+='<label class="f" for="etitle">What is it?</label><input type="text" id="etitle" value="'+esc(r.title||"")+'" placeholder="e.g. Label printer error">';
+  else h+='<h3>'+esc(s.title)+'</h3>';
+  h+='</div><button class="x" id="close" aria-label="Close">×</button></div>';
+  if(!ex){h+='<p class="hint">'+esc(s.hint)+'</p>';if(s.must)h+='<span class="badge"><span class="dot"></span> First priority</span>'}
+  h+='<div class="prev">'+(d?'<img alt="Photo taken" src="'+urlFor(id)+'">':ICON_CAM)+'</div>';
+  h+='<div class="row"><button class="btn pri" id="take">'+ICON_CAM+'<span>'+(d?"Retake photo":"Take photo")+'</span></button></div>';
+  h+='<div class="row"><button class="btn" id="pick">Choose from gallery</button>';
+  if(d&&!ex)h+='<button class="btn" id="nxt">Next missing</button>';
+  h+='</div><div><label class="f" for="note">Note (optional)</label><textarea id="note" placeholder="e.g. second page, PLU 7333">'+esc(r.note||"")+'</textarea></div>';
+  if(d||ex)h+='<div class="row"><button class="btn dng" id="rm">'+(ex?"Delete this extra":"Remove photo")+'</button></div>';
+  h+='</div></div>';
+  $("layer").innerHTML=h;
+  $("scrim").onclick=closeSheet;$("close").onclick=closeSheet;
+  $("take").onclick=function(){$("cam").value="";$("cam").click()};
+  $("pick").onclick=function(){$("gal").value="";$("gal").click()};
+  if($("nxt"))$("nxt").onclick=function(){var m=nextMissing(id);closeSheet();if(m)openSheet(m.id);else toast("All shots taken")};
+  var nt=$("note");nt.oninput=function(){clearTimeout(nt.t);nt.t=setTimeout(function(){saveMeta(id)},350)};
+  if($("etitle"))$("etitle").oninput=function(){clearTimeout(nt.t);nt.t=setTimeout(function(){saveMeta(id)},350)};
+  var rm=$("rm");
+  if(rm)rm.onclick=function(){
+    if(rm.dataset.sure!=="1"){rm.dataset.sure="1";rm.textContent="Tap again to confirm";return}
+    removePhoto(id)};
+}
+function closeSheet(){
+  if(openId)saveMeta(openId);
+  openId=null;$("layer").innerHTML="";render()}
+function saveMeta(id){
+  var s=shotById(id);if(!s)return;
+  var note=$("note")?$("note").value:"",tt=$("etitle")?$("etitle").value:null;
+  var r=rec[id]||(rec[id]={id:id,extra:!!s.extra});
+  if(!r.blob&&!note&&!s.extra)return;
+  r.note=note;if(tt!==null)r.title=tt;
+  dbPut(r)}
+function removePhoto(id){
+  var r=rec[id];
+  if(urls[id]){URL.revokeObjectURL(urls[id]);delete urls[id]}
+  if(r&&r.extra){delete rec[id];dbDel(id)}
+  else if(r){r.blob=null;dbPut(r)}
+  openId=null;$("layer").innerHTML="";render();toast("Removed")}
+
+/* image handling */
+function shrink(file){return new Promise(function(res,rej){
+  var done=function(src,w,h){
+    var M=1500,k=Math.min(1,M/Math.max(w,h)),c=document.createElement("canvas");
+    c.width=Math.round(w*k);c.height=Math.round(h*k);
+    var x=c.getContext("2d");x.fillStyle="#fff";x.fillRect(0,0,c.width,c.height);x.drawImage(src,0,0,c.width,c.height);
+    c.toBlob(function(b){b?res(b):rej(new Error("encode"))},"image/jpeg",.82)};
+  if(window.createImageBitmap){
+    createImageBitmap(file,{imageOrientation:"from-image"}).then(function(b){done(b,b.width,b.height)},fallback)}
+  else fallback();
+  function fallback(){var u=URL.createObjectURL(file),im=new Image();
+    im.onload=function(){done(im,im.naturalWidth,im.naturalHeight);URL.revokeObjectURL(u)};
+    im.onerror=function(){rej(new Error("load"))};im.src=u}
+})}
+function onFile(inp){
+  var f=inp.files&&inp.files[0];if(!f||!openId)return;
+  var id=openId,s=shotById(id);
+  toast("Saving photo…");
+  shrink(f).then(function(b){
+    var note=$("note")?$("note").value:"",tt=$("etitle")?$("etitle").value:null;
+    var r=rec[id]||(rec[id]={id:id,extra:!!(s&&s.extra)});
+    r.blob=b;r.ts=Date.now();if(note)r.note=note;if(tt!==null)r.title=tt;
+    if(urls[id]){URL.revokeObjectURL(urls[id]);delete urls[id]}
+    return dbPut(r).then(function(ok){
+      if(!ok&&!memOnly){memOnly=true;toast("Saved for now, but this browser would not store it. Export before you close the page.")}
+      else toast("Photo saved");
+      render();openSheet(id);
+    })}).catch(function(){toast("Could not read that photo. Try again.")})}
+$("cam").addEventListener("change",function(){onFile(this)});
+$("gal").addEventListener("change",function(){onFile(this)});
+
+/* events */
+$("main").addEventListener("click",function(e){
+  var t=e.target.closest("button");if(!t)return;
+  if(t.dataset.add){
+    var id="x"+Date.now();rec[id]={id:id,extra:true,title:"",note:""};render();openSheet(id);return}
+  if(t.dataset.id)openSheet(t.dataset.id)});
+[["f-all","all"],["f-todo","todo"],["f-done","done"]].forEach(function(p){
+  $(p[0]).onclick=function(){filter=p[1];["f-all","f-todo","f-done"].forEach(function(i){$(i).setAttribute("aria-pressed",i===p[0])});render()}});
+$("next").onclick=function(){var m=nextPriority();if(m)openSheet(m.id)};
+document.addEventListener("keydown",function(e){if(e.key==="Escape"&&openId)closeSheet()});
+var clr=$("clearall");
+clr.onclick=function(){
+  if(clr.dataset.sure!=="1"){clr.dataset.sure="1";clr.textContent="Tap again to delete every photo on this phone";setTimeout(function(){clr.dataset.sure="";clr.textContent="Clear all photos from this phone"},5000);return}
+  clr.dataset.sure="";clr.textContent="Clear all photos from this phone";
+  Object.keys(urls).forEach(function(k){URL.revokeObjectURL(urls[k])});urls={};rec={};
+  dbClear().then(function(){render();toast("All photos cleared")})};
+
+/* PDF export */
+function blobToDataURL(b){return new Promise(function(res,rej){var r=new FileReader();r.onload=function(){res(r.result)};r.onerror=rej;r.readAsDataURL(b)})}
+function imgSize(u){return new Promise(function(res){var i=new Image();i.onload=function(){res([i.naturalWidth,i.naturalHeight])};i.onerror=function(){res([4,3])};i.src=u})}
+function doExport(){
+  var exs=extras().filter(function(e){return e.blob});
+  var items=SHOTS.filter(function(s){return has(s.id)}).map(function(s){return{no:s.no,title:s.title,sec:SECTIONS[s.sec].name,note:(rec[s.id]||{}).note||"",blob:rec[s.id].blob}})
+    .concat(exs.map(function(e,i){return{no:"E"+(i+1),title:e.title||"Extra photo",sec:"Extras",note:e.note||"",blob:e.blob}}));
+  if(!items.length){toast("Take at least one photo first");return}
+  if(!window.jspdf){toast("The PDF tool did not load. Check your signal and reload.");return}
+  var btn=$("export");btn.disabled=true;toast("Building PDF…");
+  var J=window.jspdf.jsPDF,doc=new J({unit:"mm",format:"a4"}),W=210,H=297,M=14,y=M;
+  var now=new Date(),ds=now.toISOString().slice(0,10);
+  doc.setFont("helvetica","bold");doc.setFontSize(20);doc.text("Scale photo checklist",M,y+6);y+=14;
+  doc.setFont("helvetica","normal");doc.setFontSize(10);
+  doc.text("Taken "+ds+" · "+doneCount()+" of "+SHOTS.length+" listed shots · "+exs.length+" extra",M,y);y+=8;
+  doc.setFontSize(9);
+  SECTIONS.forEach(function(s){
+    if(y>H-30){doc.addPage();y=M}
+    doc.setFont("helvetica","bold");doc.text(s.name.toUpperCase(),M,y);y+=5;doc.setFont("helvetica","normal");
+    s.shots.forEach(function(x){
+      if(y>H-M){doc.addPage();y=M}
+      doc.text((has(x.id)?"[x] ":"[ ] ")+(x.no<10?"0":"")+x.no+"  "+x.title+(has(x.id)?"":"   (missing)"),M+2,y);y+=4.4});
+    y+=3});
+  var chain=Promise.resolve();
+  items.forEach(function(it){
+    chain=chain.then(function(){return blobToDataURL(it.blob)}).then(function(u){return imgSize(u).then(function(sz){
+      doc.addPage();var yy=M;
+      doc.setFont("helvetica","bold");doc.setFontSize(14);
+      var tl=doc.splitTextToSize((typeof it.no==="number"?(it.no<10?"0":"")+it.no:it.no)+"  "+it.title,W-2*M);
+      doc.text(tl,M,yy+5);yy+=tl.length*6+1;
+      doc.setFont("helvetica","normal");doc.setFontSize(9);doc.text(it.sec,M,yy+2);yy+=6;
+      if(it.note){var nl=doc.splitTextToSize("Note: "+it.note,W-2*M);doc.setFontSize(10);doc.text(nl,M,yy+2);yy+=nl.length*4.6+3}
+      var mw=W-2*M,mh=H-M-yy,k=Math.min(mw/sz[0],mh/sz[1]),w=sz[0]*k,h=sz[1]*k;
+      doc.addImage(u,"JPEG",M,yy,w,h)})});
+  });
+  chain.then(function(){
+    var out=doc.output("blob");
+    return (window.claude&&window.claude.use?window.claude.use("downloads"):Promise.resolve(null)).then(function(dl){
+      if(!dl){return localSave(out,"scale-photos-"+ds+".pdf")}
+      return dl.save({filename:"scale-photos-"+ds+".pdf",data:out}).then(function(){toast("PDF saved. Upload it to the chat.")},function(err){
+        toast(err&&err.code==="declined"?"Save cancelled":"Could not save the PDF ("+((err&&err.code)||"error")+")")})})
+  }).catch(function(){toast("Could not build the PDF. Try with fewer photos.")}).then(function(){btn.disabled=false});
+}
+function localSave(blob,name){
+  try{var a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=name;a.style.display="none";document.body.appendChild(a);a.click();setTimeout(function(){a.remove()},1500);toast("PDF downloading. Look in your Downloads folder.")}
+  catch(e){toast("This browser blocked the download.")}}
+$("export").onclick=doExport;
+
+/* boot */
+render();
+openDB().then(function(db){dbh=db;if(!db)memOnly=true;return dbAll()}).then(function(all){
+  all.forEach(function(r){rec[r.id]=r});render();
+  if(memOnly)toast("This browser will not keep photos between visits. Export before closing.")});
+})();
+</script>
